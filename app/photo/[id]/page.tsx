@@ -6,6 +6,13 @@ interface PhotoPageProps {
   params: Promise<{ id: string }>;
 }
 
+// Generate static params for all photos
+export async function generateStaticParams() {
+  return photos.map((photo) => ({
+    id: photo.id,
+  }));
+}
+
 export default async function PhotoPage({ params }: PhotoPageProps) {
   const { id } = await params;
   const photo = photos.find((p) => p.id === id);
