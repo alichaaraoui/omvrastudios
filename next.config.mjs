@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
+  basePath: '/omvrastudios',
+  assetPrefix: '/omvrastudios',
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -10,9 +12,6 @@ const nextConfig = {
       },
     ],
   },
-  // For GitHub Pages, if your repo name is not the root, set basePath
-  // basePath: '/omvrastudios',
-  // assetPrefix: '/omvrastudios',
 };
 
 export default nextConfig;
