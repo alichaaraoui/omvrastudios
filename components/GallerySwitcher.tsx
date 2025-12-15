@@ -1,10 +1,31 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Photo } from "@/lib/data";
-import SphereGallery from "./SphereGallery";
-import RowGallery from "./RowGallery";
-import GridGallery from "./GridGallery";
+
+// Dynamically import 3D components with SSR disabled for static export
+const SphereGallery = dynamic(() => import("./SphereGallery"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-screen bg-white flex items-center justify-center">
+      <p className="text-black">Loading gallery...</p>
+    </div>
+  ),
+});
+
+const RowGallery = dynamic(() => import("./RowGallery"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-screen bg-white flex items-center justify-center">
+      <p className="text-black">Loading gallery...</p>
+    </div>
+  ),
+});
+
+const GridGallery = dynamic(() => import("./GridGallery"), {
+  ssr: false,
+});
 
 interface GallerySwitcherProps {
   photos: Photo[];
