@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  // Remove basePath if using custom domain or username.github.io
-  // Add basePath: '/omvrastudios' if using username.github.io/omvrastudios
+  basePath: '/omvrastudios',
+  assetPrefix: '/omvrastudios',
   images: {
     unoptimized: true,
     remotePatterns: [
