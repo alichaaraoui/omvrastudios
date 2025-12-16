@@ -74,7 +74,7 @@ function PhotoPlane({ photo, position, index, total }: { photo: Photo; position:
       onClick={handleClick}
       scale={hovered ? 1.3 : 1.0}
     >
-      <planeGeometry args={[2.5, 2.5]} />
+      <planeGeometry args={[3.5, 3.5]} />
       <meshStandardMaterial 
         map={texture} 
         side={THREE.DoubleSide}
