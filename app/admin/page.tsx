@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Project, ProjectImage, loadProjects, saveProjects } from "@/lib/projects";
+import { Project, ProjectImage } from "@/lib/projects";
+import { loadProjects, saveProjects, uploadImages } from "@/lib/projectStorage";
 import Image from "next/image";
 
 export default function AdminPage() {
@@ -16,11 +17,8 @@ export default function AdminPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects");
-      if (response.ok) {
-        const data = await response.json();
-        setProjects(data);
-      }
+      const data = await loadProjects();
+      setProjects(data);
     } catch (error) {
       console.error("Failed to fetch projects:", error);
     } finally {
@@ -42,13 +40,9 @@ export default function AdminPage() {
     if (!confirm("Are you sure you want to delete this project?")) return;
 
     try {
-      const response = await fetch(`/api/projects/${id}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        await fetchProjects();
-      }
+      const updatedProjects = projects.filter((p) => p.id !== id);
+      saveProjects(updatedProjects);
+      setProjects(updatedProjects);
     } catch (error) {
       console.error("Failed to delete project:", error);
       alert("Failed to delete project");
@@ -76,10 +70,9 @@ export default function AdminPage() {
           </button>
         </div>
 
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200">
-          <p className="text-sm text-yellow-800">
-            <strong>Note:</strong> This admin interface works in development mode. Make sure you're running <code className="bg-yellow-100 px-1">npm run dev</code>. 
-            API routes don't work with static export builds.
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> Projects are saved to your browser&apos;s localStorage. This works in both development and production!
           </p>
         </div>
 
@@ -177,40 +170,27 @@ function ProjectForm({
     if (!files || files.length === 0) return;
 
     setUploading(true);
-    const formData = new FormData();
-
-    for (let i = 0; i < files.length; i++) {
-      formData.append("images", files[i]);
-    }
 
     try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const fileArray = Array.from(files);
+      const urls = await uploadImages(fileArray);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.urls && data.urls.length > 0) {
-          const newImages: ProjectImage[] = data.urls.map((url: string, index: number) => ({
-            id: `${Date.now()}-${index}`,
-            url: url,
-            thumbnailUrl: url, // In a real app, you'd generate thumbnails
-            title: files[index]?.name || "",
-          }));
-          setImages([...images, ...newImages]);
-          // Reset file input
-          e.target.value = "";
-        } else {
-          alert("No images were uploaded. Please try again.");
-        }
+      if (urls.length > 0) {
+        const newImages: ProjectImage[] = urls.map((url: string, index: number) => ({
+          id: `${Date.now()}-${index}`,
+          url: url,
+          thumbnailUrl: url,
+          title: fileArray[index]?.name || "",
+        }));
+        setImages([...images, ...newImages]);
+        // Reset file input
+        e.target.value = "";
       } else {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        alert(`Failed to upload images: ${errorData.error || "Server error"}`);
+        alert("No images were uploaded. Please try again.");
       }
     } catch (error: any) {
       console.error("Upload error:", error);
-      alert(`Failed to upload images: ${error?.message || "Network error"}`);
+      alert(`Failed to upload images: ${error?.message || "Unknown error"}`);
     } finally {
       setUploading(false);
     }
@@ -238,24 +218,24 @@ function ProjectForm({
         updatedAt: new Date().toISOString(),
       };
 
-      const response = project
-        ? await fetch(`/api/projects/${project.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(projectData),
-          })
-        : await fetch("/api/projects", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(projectData),
-          });
+      // Load existing projects
+      const existingProjects = await loadProjects();
+      let updatedProjects: Project[];
 
-      if (response.ok) {
-        onSave();
-        onClose();
+      if (project) {
+        // Update existing project
+        updatedProjects = existingProjects.map((p) =>
+          p.id === project.id ? projectData : p
+        );
       } else {
-        alert("Failed to save project");
+        // Add new project
+        updatedProjects = [...existingProjects, projectData];
       }
+
+      // Save to localStorage
+      saveProjects(updatedProjects);
+      onSave();
+      onClose();
     } catch (error) {
       console.error("Save error:", error);
       alert("Failed to save project");

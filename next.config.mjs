@@ -12,6 +12,12 @@ const nextConfig = {
       },
     ],
   },
+  // Exclude API routes and admin page from static export
+  async generateBuildId() {
+    return 'static-build';
+  },
+  // Skip API routes - they don't work with static export
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
 };
 
 export default nextConfig;
