@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Project, ProjectImage } from "@/lib/projects";
-import { loadProjects, saveProjects, uploadImages } from "@/lib/projectStorage";
+import { loadProjects, saveProjects, uploadImages, exportProjects, importProjects } from "@/lib/indexedDBStorage";
 import Image from "next/image";
 
 export default function AdminPage() {
@@ -41,11 +41,52 @@ export default function AdminPage() {
 
     try {
       const updatedProjects = projects.filter((p) => p.id !== id);
-      saveProjects(updatedProjects);
+      await saveProjects(updatedProjects);
       setProjects(updatedProjects);
     } catch (error) {
       console.error("Failed to delete project:", error);
-      alert("Failed to delete project");
+      alert("Failed to delete project: " + (error instanceof Error ? error.message : "Unknown error"));
+    }
+  };
+
+  const handleExportProjects = async () => {
+    try {
+      const json = await exportProjects();
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `omvra-projects-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert("Projects exported successfully!");
+    } catch (error) {
+      console.error("Export error:", error);
+      alert("Failed to export projects");
+    }
+  };
+
+  const handleImportProjects = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm("This will replace all existing projects. Continue?")) {
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      await importProjects(text);
+      await fetchProjects();
+      alert("Projects imported successfully!");
+    } catch (error) {
+      console.error("Import error:", error);
+      alert("Failed to import projects: " + (error instanceof Error ? error.message : "Invalid file"));
+    } finally {
+      e.target.value = "";
     }
   };
 
@@ -71,9 +112,26 @@ export default function AdminPage() {
         </div>
 
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200">
-          <p className="text-sm text-blue-800">
-            <strong>Note:</strong> Projects are saved to your browser&apos;s localStorage. This works in both development and production!
+          <p className="text-sm text-blue-800 mb-2">
+            <strong>Note:</strong> Projects are saved to your browser&apos;s IndexedDB (much larger storage than localStorage). This works in both development and production!
           </p>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handleExportProjects}
+              className="px-4 py-1 text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              Export Projects (Backup)
+            </button>
+            <label className="px-4 py-1 text-xs bg-green-600 text-white hover:bg-green-700 transition-colors cursor-pointer">
+              Import Projects
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportProjects}
+                className="hidden"
+              />
+            </label>
+          </div>
         </div>
 
         {showForm && (
@@ -190,7 +248,18 @@ function ProjectForm({
       }
     } catch (error: any) {
       console.error("Upload error:", error);
-      alert(`Failed to upload images: ${error?.message || "Unknown error"}`);
+      const errorMsg = error?.message || "Unknown error";
+      if (errorMsg.includes("quota") || errorMsg.includes("QuotaExceeded")) {
+        alert(
+          "Storage limit exceeded! Images are too large.\n\n" +
+          "Solutions:\n" +
+          "1. Use fewer or smaller images\n" +
+          "2. Images are being compressed, but may still be too large\n" +
+          "3. Consider using a cloud image service (see instructions in README)"
+        );
+      } else {
+        alert(`Failed to upload images: ${errorMsg}`);
+      }
     } finally {
       setUploading(false);
     }
@@ -232,13 +301,27 @@ function ProjectForm({
         updatedProjects = [...existingProjects, projectData];
       }
 
-      // Save to localStorage
-      saveProjects(updatedProjects);
+      // Save to IndexedDB
+      await saveProjects(updatedProjects);
       onSave();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Save error:", error);
-      alert("Failed to save project");
+      const errorMessage = error?.message || (error instanceof Error ? error.message : "Unknown error");
+      if (errorMessage.includes("QuotaExceeded") || errorMessage.includes("quota") || errorMessage.includes("too large")) {
+        alert(
+          "Storage limit exceeded!\n\n" +
+          "Your projects data is too large for browser storage (~5-10MB limit).\n\n" +
+          "Solutions:\n" +
+          "1. Remove some images from projects\n" +
+          "2. Use smaller/compressed images (they're already being compressed)\n" +
+          "3. Delete old projects\n" +
+          "4. Set up a backend API for image storage (recommended)\n\n" +
+          "See ADMIN_README.md for instructions on setting up a backend API."
+        );
+      } else {
+        alert(`Failed to save project: ${errorMessage}`);
+      }
     } finally {
       setSaving(false);
     }
