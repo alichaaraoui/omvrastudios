@@ -171,16 +171,6 @@ export const photos: Photo[] = [
     thumbnailUrl: "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=400&h=400&fit=crop",
     imageUrl: "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1200&h=800&fit=crop",
     description: "Endless grasslands swaying in the wind, a meditation on horizontal space."
-  },
-  {
-    id: "16",
-    title: "Concrete Dreams",
-    series: "Urban Landscapes",
-    location: "Berlin, Germany",
-    year: "2024",
-    thumbnailUrl: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=400&fit=crop",
-    imageUrl: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1200&h=800&fit=crop",
-    description: "Modernist architecture standing as monuments to human ambition and design."
   }
 ];
 

@@ -90,6 +90,16 @@ export default function Navbar() {
                 >
                   Cart ({cartCount})
                 </Link>
+                <Link
+                  href="/admin"
+                  onClick={() => {
+                    setIsExpanded(false);
+                    setShowAbout(false);
+                  }}
+                  className="p-2 text-black text-sm hover:bg-black hover:text-white transition-colors whitespace-nowrap"
+                >
+                  Admin
+                </Link>
               </div>
               <button
                 onClick={toggleMenu}

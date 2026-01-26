@@ -74,7 +74,7 @@ function PhotoPlane({ photo, position, index, total }: { photo: Photo; position:
       onClick={handleClick}
       scale={hovered ? 1.3 : 1.0}
     >
-      <planeGeometry args={[3.5, 3.5]} />
+      <planeGeometry args={[6, 6]} />
       <meshStandardMaterial 
         map={texture} 
         side={THREE.DoubleSide}
@@ -86,16 +86,27 @@ function PhotoPlane({ photo, position, index, total }: { photo: Photo; position:
 }
 
 function SphereScene({ photos }: { photos: Photo[] }) {
-  const radius = 25;
+  const radius = 18;
   
-  // Improved sphere distribution using Fibonacci spiral for even coverage
+  // Uniform spherical distribution for balanced placement
   const positions: [number, number, number][] = photos.map((_, index) => {
-    const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // Golden angle in radians
-    const theta = goldenAngle * index;
-    const y = 1 - (2 * index) / Math.max(photos.length - 1, 1); // Distribute from -1 to 1
-    const radiusAtY = Math.sqrt(1 - y * y); // Radius at this y level
+    const i = index + 0.5; // Offset for better distribution
+    const n = photos.length;
+    
+    // Use golden angle spiral for even coverage
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~2.39996 radians
+    
+    // Distribute evenly along vertical axis
+    const y = 1 - (2 * i) / n; // Range from -1 to 1
+    const radiusAtY = Math.sqrt(Math.max(0, 1 - y * y)); // Radius at this y level
+    
+    // Use golden angle for azimuthal rotation
+    const theta = goldenAngle * i;
+    
+    // Convert to Cartesian coordinates
     const x = Math.cos(theta) * radiusAtY;
     const z = Math.sin(theta) * radiusAtY;
+    
     return [x * radius, y * radius, z * radius];
   });
 
@@ -108,8 +119,8 @@ function SphereScene({ photos }: { photos: Photo[] }) {
       <OrbitControls 
         enableZoom={true} 
         enablePan={false}
-        minDistance={20}
-        maxDistance={60}
+        minDistance={15}
+        maxDistance={45}
         autoRotate={false}
         enableDamping={true}
         dampingFactor={0.05}
@@ -148,7 +159,7 @@ export default function SphereGallery({ photos }: SphereGalleryProps) {
     <div className="w-full h-screen bg-white relative">
       <Suspense fallback={<LoadingFallback />}>
         <Canvas 
-          camera={{ position: [0, 0, 40], fov: 60 }}
+          camera={{ position: [0, 0, 30], fov: 60 }}
           gl={{ 
             antialias: true, 
             alpha: false,
