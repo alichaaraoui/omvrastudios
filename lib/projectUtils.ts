@@ -17,11 +17,30 @@ export function projectsToPhotos(projects: Project[]): Photo[] {
         thumbnailUrl: image.thumbnailUrl || image.url,
         imageUrl: image.url,
         description: project.description,
+        // Store project ID in a way we can access it
+        // We'll use the series field to identify project photos
       });
     });
   });
 
   return photos;
+}
+
+// Extract project ID from photo ID (format: projectId-imageId)
+export function getProjectIdFromPhotoId(photoId: string): string | null {
+  // Check if this is a project photo (format: projectId-imageId)
+  const parts = photoId.split('-');
+  if (parts.length >= 2) {
+    // Try to find if this matches a project ID pattern
+    // For now, we'll check if loading projects returns a match
+    return parts[0]; // Return the first part as potential project ID
+  }
+  return null;
+}
+
+// Check if a photo ID belongs to a project
+export function isProjectPhoto(photoId: string): boolean {
+  return photoId.includes('-') && photoId.split('-').length >= 2;
 }
 
 // Get all photos from projects (for backward compatibility)

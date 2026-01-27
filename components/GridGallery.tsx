@@ -16,7 +16,18 @@ export default function GridGallery({ photos }: GridGalleryProps) {
       {photos.map((photo) => (
         <div
           key={photo.id}
-          onClick={() => router.push(`/photo/${photo.id}`)}
+          onClick={() => {
+            // Check if this is a project photo
+            if (photo.id.startsWith("project-")) {
+              const parts = photo.id.split('-');
+              if (parts.length >= 3) {
+                const projectId = `${parts[0]}-${parts[1]}`;
+                router.push(`/project/${projectId}`);
+                return;
+              }
+            }
+            router.push(`/photo/${photo.id}`);
+          }}
           className="border border-black cursor-pointer hover:opacity-80 transition-opacity bg-white"
         >
           <div className="relative w-full aspect-square">

@@ -58,6 +58,19 @@ function PhotoPlane({ photo, position, index, total }: { photo: Photo; position:
   });
 
   const handleClick = () => {
+    // Check if this is a project photo (format: projectId-imageId)
+    // Project IDs start with "project-", so we can detect them
+    if (photo.id.startsWith("project-")) {
+      // Extract project ID
+      // Format: project-timestamp-timestamp-index
+      // Project ID is "project-timestamp"
+      const parts = photo.id.split('-');
+      if (parts.length >= 3) {
+        const projectId = `${parts[0]}-${parts[1]}`;
+        router.push(`/project/${projectId}`);
+        return;
+      }
+    }
     router.push(`/photo/${photo.id}`);
   };
 
