@@ -1,5 +1,6 @@
 import { Project, ProjectImage } from "./projects";
 import { Photo } from "./data";
+import { loadProjects } from "./projectStorage";
 
 // Convert projects to photos format for existing galleries
 export function projectsToPhotos(projects: Project[]): Photo[] {
@@ -26,14 +27,22 @@ export function projectsToPhotos(projects: Project[]): Photo[] {
 // Get all photos from projects (for backward compatibility)
 export async function getAllPhotos(): Promise<Photo[]> {
   try {
-    const response = await fetch("/api/projects");
-    if (response.ok) {
-      const projects: Project[] = await response.json();
-      return projectsToPhotos(projects);
-    }
+    const projects = await loadProjects();
+    return projectsToPhotos(projects);
   } catch (error) {
     console.error("Failed to load photos from projects:", error);
+    return [];
   }
-  return [];
+}
+
+// Get a project by ID
+export async function getProjectById(projectId: string): Promise<Project | null> {
+  try {
+    const projects = await loadProjects();
+    return projects.find(p => p.id === projectId) || null;
+  } catch (error) {
+    console.error("Failed to load project:", error);
+    return null;
+  }
 }
 

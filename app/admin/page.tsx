@@ -41,8 +41,13 @@ export default function AdminPage() {
 
     try {
       const updatedProjects = projects.filter((p) => p.id !== id);
-      await saveProjects(updatedProjects);
+      saveProjects(updatedProjects);
       setProjects(updatedProjects);
+      
+      // Dispatch custom event to notify other tabs/pages
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("projectsUpdated"));
+      }
     } catch (error) {
       console.error("Failed to delete project:", error);
       alert("Failed to delete project: " + (error instanceof Error ? error.message : "Unknown error"));
@@ -301,8 +306,14 @@ function ProjectForm({
         updatedProjects = [...existingProjects, projectData];
       }
 
-      // Save to IndexedDB
-      await saveProjects(updatedProjects);
+      // Save to localStorage
+      saveProjects(updatedProjects);
+      
+      // Dispatch custom event to notify other tabs/pages
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("projectsUpdated"));
+      }
+      
       onSave();
       onClose();
     } catch (error: any) {

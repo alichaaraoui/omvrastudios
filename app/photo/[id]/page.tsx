@@ -1,26 +1,22 @@
-import { notFound } from "next/navigation";
-import { photos } from "@/lib/data";
-import PhotoDetailView from "@/components/PhotoDetailView";
+import { photos as staticPhotos } from "@/lib/data";
+import PhotoPageClient from "./PhotoPageClient";
+import { Photo } from "@/lib/data";
 
 interface PhotoPageProps {
   params: Promise<{ id: string }>;
 }
 
-// Generate static params for all photos
+// Generate static params for static export (uses static photos)
 export async function generateStaticParams() {
-  return photos.map((photo) => ({
+  return staticPhotos.map((photo) => ({
     id: photo.id,
   }));
 }
 
 export default async function PhotoPage({ params }: PhotoPageProps) {
   const { id } = await params;
-  const photo = photos.find((p) => p.id === id);
+  const photo = staticPhotos.find((p) => p.id === id) || null;
 
-  if (!photo) {
-    notFound();
-  }
-
-  return <PhotoDetailView photo={photo} allPhotos={photos} />;
+  return <PhotoPageClient initialPhoto={photo} initialAllPhotos={staticPhotos} />;
 }
 
