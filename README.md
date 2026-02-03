@@ -35,23 +35,49 @@ npm run dev
 
 3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Backend
+## Adding projects on the live site (no token for users)
 
-The app includes a **Node.js backend** for project and image storage (no localStorage limits).
+To let anyone create projects from the **public** site (e.g. GitHub Pages) with no login or token:
 
-- **Projects**: Stored in `data/projects.json` (created automatically).
-- **Uploaded images**: Stored in `public/uploads/` and served at `/uploads/...`.
+1. **Create a free [Supabase](https://supabase.com) project.**
 
-Run the app in server mode (required for admin and project data):
+2. **Create the table and bucket** in the Supabase SQL Editor:
 
-```bash
-npm run dev    # development
-# or
-npm run build && npm run start   # production
+```sql
+-- Table for projects
+create table if not exists projects (
+  id text primary key,
+  title text not null,
+  description text not null,
+  images jsonb not null default '[]',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Allow public read and insert/update/delete (for admin)
+alter table projects enable row level security;
+create policy "Allow public read" on projects for select using (true);
+create policy "Allow public all" on projects for all using (true);
+
+-- Storage bucket for images (run in SQL or create in Dashboard → Storage)
+insert into storage.buckets (id, name, public) values ('uploads', 'uploads', true)
+on conflict (id) do nothing;
+create policy "Allow public read" on storage.objects for select using (bucket_id = 'uploads');
+create policy "Allow public upload" on storage.objects for insert with check (bucket_id = 'uploads');
 ```
 
-Admin: [http://localhost:3000/admin](http://localhost:3000/admin) — create projects, upload images, edit/delete.  
-The home gallery loads projects from the API; if the API is unavailable, it falls back to static photo data.
+If the bucket already exists, create it in **Dashboard → Storage → New bucket** (name: `uploads`, public: yes), then add policies so **select** and **insert** are allowed for everyone.
+
+3. **Add env vars** (in GitHub: repo → Settings → Secrets and variables → Actions; or for local, `.env.local`):
+
+- `NEXT_PUBLIC_SUPABASE_URL` = your project URL (e.g. `https://xxxx.supabase.co`)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your project anon/public key
+
+4. **Redeploy.** After that, anyone can open `/admin` on the live site, create a project, and upload images—no token needed.
+
+## Local / Node backend (optional)
+
+When Supabase is not configured, the app can use a **Node backend** (e.g. `npm run dev` with API routes): projects in `data/projects.json`, images in `public/uploads/`.
 
 ## Project Structure
 

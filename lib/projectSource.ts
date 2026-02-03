@@ -1,12 +1,21 @@
 import { Project } from "./projects";
+import { isSupabaseConfigured } from "./supabase";
+import * as projectSupabase from "./projectSupabase";
 
 const API = "/api";
 const BASE_PATH =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_BASE_PATH) ||
   "/omvrastudios";
 
-/** Load projects: try backend API first, then static JSON (for GitHub Pages). */
+/** Load projects: Supabase (if configured) → API → static JSON. */
 export async function loadProjects(): Promise<Project[]> {
+  if (isSupabaseConfigured()) {
+    try {
+      return await projectSupabase.loadProjects();
+    } catch (e) {
+      console.error("Supabase loadProjects:", e);
+    }
+  }
   try {
     const res = await fetch(`${API}/projects`);
     if (res.ok) return await res.json();
@@ -27,6 +36,13 @@ export async function loadProjects(): Promise<Project[]> {
 
 /** Get one project by id. */
 export async function getProjectById(id: string): Promise<Project | null> {
+  if (isSupabaseConfigured()) {
+    try {
+      return await projectSupabase.getProjectById(id);
+    } catch (e) {
+      console.error("Supabase getProjectById:", e);
+    }
+  }
   try {
     const res = await fetch(`${API}/projects/${encodeURIComponent(id)}`);
     if (res.ok) return await res.json();
