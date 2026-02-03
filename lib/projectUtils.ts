@@ -1,6 +1,6 @@
 import { Project, ProjectImage } from "./projects";
 import { Photo } from "./data";
-import { loadProjects } from "./projectStorage";
+import { loadProjects, getProjectById as getProjectByIdApi } from "./projectApi";
 
 // Convert projects to photos format for existing galleries
 export function projectsToPhotos(projects: Project[]): Photo[] {
@@ -57,8 +57,7 @@ export async function getAllPhotos(): Promise<Photo[]> {
 // Get a project by ID
 export async function getProjectById(projectId: string): Promise<Project | null> {
   try {
-    const projects = await loadProjects();
-    return projects.find(p => p.id === projectId) || null;
+    return await getProjectByIdApi(projectId);
   } catch (error) {
     console.error("Failed to load project:", error);
     return null;

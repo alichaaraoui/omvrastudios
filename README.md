@@ -10,6 +10,7 @@ A minimal, high-end portfolio website for Omvra Studios, featuring a 3D sphere g
 - **Book Shop**: Browse and purchase photography books
 - **Shopping Cart**: Full cart functionality with localStorage persistence
 - **Minimalist Design**: Black and white editorial aesthetic
+- **Admin interface**: Create and manage projects with image uploads (stored on the server)
 
 ## Tech Stack
 
@@ -34,17 +35,40 @@ npm run dev
 
 3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+## Backend
+
+The app includes a **Node.js backend** for project and image storage (no localStorage limits).
+
+- **Projects**: Stored in `data/projects.json` (created automatically).
+- **Uploaded images**: Stored in `public/uploads/` and served at `/uploads/...`.
+
+Run the app in server mode (required for admin and project data):
+
+```bash
+npm run dev    # development
+# or
+npm run build && npm run start   # production
+```
+
+Admin: [http://localhost:3000/admin](http://localhost:3000/admin) — create projects, upload images, edit/delete.  
+The home gallery loads projects from the API; if the API is unavailable, it falls back to static photo data.
+
 ## Project Structure
 
 ```
 ├── app/                    # Next.js App Router pages
+│   ├── api/               # API routes (projects, upload)
 │   ├── layout.tsx         # Root layout with CartProvider
 │   ├── page.tsx           # Home page
+│   ├── admin/             # Admin project management
 │   ├── gallery/           # Gallery page
 │   ├── photo/[id]/        # Photo detail page
+│   ├── project/[id]/      # Project detail page
 │   ├── about/             # About page
 │   ├── books/             # Books shop page
 │   └── cart/              # Cart page
+├── data/                  # projects.json (created at runtime)
+├── public/uploads/        # uploaded images (created at runtime)
 ├── components/            # React components
 │   ├── CartProvider.tsx   # Cart context provider
 │   ├── Navbar.tsx         # Navigation bar

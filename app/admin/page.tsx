@@ -2,7 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { Project, ProjectImage } from "@/lib/projects";
-import { loadProjects, saveProjects, uploadImages, exportProjects, importProjects } from "@/lib/indexedDBStorage";
+import {
+  loadProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+  uploadImages,
+  urlsToProjectImages,
+  exportProjects,
+  importProjects,
+} from "@/lib/projectApi";
 import Image from "next/image";
 
 export default function AdminPage() {
@@ -40,11 +49,8 @@ export default function AdminPage() {
     if (!confirm("Are you sure you want to delete this project?")) return;
 
     try {
-      const updatedProjects = projects.filter((p) => p.id !== id);
-      saveProjects(updatedProjects);
-      setProjects(updatedProjects);
-      
-      // Dispatch custom event to notify other tabs/pages
+      await deleteProject(id);
+      setProjects(projects.filter((p) => p.id !== id));
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("projectsUpdated"));
       }
@@ -118,7 +124,7 @@ export default function AdminPage() {
 
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200">
           <p className="text-sm text-blue-800 mb-2">
-            <strong>Note:</strong> Projects are saved to your browser&apos;s IndexedDB (much larger storage than localStorage). This works in both development and production!
+            <strong>Backend:</strong> Projects and images are stored on the server (data/projects.json and public/uploads). No storage limits.
           </p>
           <div className="flex gap-2 mt-2">
             <button
@@ -239,12 +245,7 @@ function ProjectForm({
       const urls = await uploadImages(fileArray);
 
       if (urls.length > 0) {
-        const newImages: ProjectImage[] = urls.map((url: string, index: number) => ({
-          id: `${Date.now()}-${index}`,
-          url: url,
-          thumbnailUrl: url,
-          title: fileArray[index]?.name || "",
-        }));
+        const newImages = urlsToProjectImages(urls, fileArray.map((f) => f.name));
         setImages([...images, ...newImages]);
         // Reset file input
         e.target.value = "";
@@ -253,18 +254,7 @@ function ProjectForm({
       }
     } catch (error: any) {
       console.error("Upload error:", error);
-      const errorMsg = error?.message || "Unknown error";
-      if (errorMsg.includes("quota") || errorMsg.includes("QuotaExceeded")) {
-        alert(
-          "Storage limit exceeded! Images are too large.\n\n" +
-          "Solutions:\n" +
-          "1. Use fewer or smaller images\n" +
-          "2. Images are being compressed, but may still be too large\n" +
-          "3. Consider using a cloud image service (see instructions in README)"
-        );
-      } else {
-        alert(`Failed to upload images: ${errorMsg}`);
-      }
+      alert("Failed to upload images: " + (error?.message || "Unknown error"));
     } finally {
       setUploading(false);
     }
@@ -292,47 +282,20 @@ function ProjectForm({
         updatedAt: new Date().toISOString(),
       };
 
-      // Load existing projects
-      const existingProjects = await loadProjects();
-      let updatedProjects: Project[];
-
       if (project) {
-        // Update existing project
-        updatedProjects = existingProjects.map((p) =>
-          p.id === project.id ? projectData : p
-        );
+        await updateProject(project.id, projectData);
       } else {
-        // Add new project
-        updatedProjects = [...existingProjects, projectData];
+        await createProject(projectData);
       }
 
-      // Save to localStorage
-      saveProjects(updatedProjects);
-      
-      // Dispatch custom event to notify other tabs/pages
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("projectsUpdated"));
       }
-      
       onSave();
       onClose();
     } catch (error: any) {
       console.error("Save error:", error);
-      const errorMessage = error?.message || (error instanceof Error ? error.message : "Unknown error");
-      if (errorMessage.includes("QuotaExceeded") || errorMessage.includes("quota") || errorMessage.includes("too large")) {
-        alert(
-          "Storage limit exceeded!\n\n" +
-          "Your projects data is too large for browser storage (~5-10MB limit).\n\n" +
-          "Solutions:\n" +
-          "1. Remove some images from projects\n" +
-          "2. Use smaller/compressed images (they're already being compressed)\n" +
-          "3. Delete old projects\n" +
-          "4. Set up a backend API for image storage (recommended)\n\n" +
-          "See ADMIN_README.md for instructions on setting up a backend API."
-        );
-      } else {
-        alert(`Failed to save project: ${errorMessage}`);
-      }
+      alert("Failed to save project: " + (error?.message || "Unknown error"));
     } finally {
       setSaving(false);
     }
