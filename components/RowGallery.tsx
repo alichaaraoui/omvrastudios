@@ -75,21 +75,9 @@ function IsometricPhotoPlane({ photo, basePosition, scrollOffset, index }: { pho
   });
 
   const handleClick = () => {
-    // Check if this is a project photo (format: projectId-imageId)
-    // Project IDs start with "project-", so we can detect them
-    if (photo.id.startsWith("project-")) {
-      // Extract project ID (everything before the last dash-separated image ID part)
-      // Since project IDs are "project-timestamp" and image IDs are "timestamp-index",
-      // we need to find where the project ID ends
-      // Simple approach: if it starts with "project-", try to find the project
-      const parts = photo.id.split('-');
-      if (parts.length >= 3) {
-        // Format: project-timestamp-timestamp-index
-        // Project ID is "project-timestamp"
-        const projectId = `${parts[0]}-${parts[1]}`;
-        router.push(`/project/${projectId}`);
-        return;
-      }
+    if (photo.projectId) {
+      router.push(`/project/${photo.projectId}`);
+      return;
     }
     router.push(`/photo/${photo.id}`);
   };

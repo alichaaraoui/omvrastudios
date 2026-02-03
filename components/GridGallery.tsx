@@ -17,14 +17,9 @@ export default function GridGallery({ photos }: GridGalleryProps) {
         <div
           key={photo.id}
           onClick={() => {
-            // Check if this is a project photo
-            if (photo.id.startsWith("project-")) {
-              const parts = photo.id.split('-');
-              if (parts.length >= 3) {
-                const projectId = `${parts[0]}-${parts[1]}`;
-                router.push(`/project/${projectId}`);
-                return;
-              }
+            if (photo.projectId) {
+              router.push(`/project/${photo.projectId}`);
+              return;
             }
             router.push(`/photo/${photo.id}`);
           }}

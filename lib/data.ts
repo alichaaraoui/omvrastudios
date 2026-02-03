@@ -7,6 +7,8 @@ export interface Photo {
   thumbnailUrl: string;
   imageUrl: string;
   description: string;
+  /** When set, gallery links to project detail page instead of photo page */
+  projectId?: string;
 }
 
 export interface Book {
