@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Project, ProjectImage } from "@/lib/projects";
+import { loadProjects } from "@/lib/projectSource";
 import {
-  loadProjects,
   createProject,
   updateProject,
   deleteProject,
@@ -12,15 +12,22 @@ import {
   exportProjects,
   importProjects,
 } from "@/lib/projectApi";
+import { getRepo, getFile, putFile } from "@/lib/githubApi";
 import Image from "next/image";
+
+const TOKEN_KEY = "omvra_github_token";
 
 export default function AdminPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [githubToken, setGithubToken] = useState("");
+  const [tokenInput, setTokenInput] = useState("");
 
   useEffect(() => {
+    const saved = typeof sessionStorage !== "undefined" ? sessionStorage.getItem(TOKEN_KEY) : null;
+    if (saved) setGithubToken(saved);
     fetchProjects();
   }, []);
 
@@ -33,6 +40,20 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveToken = () => {
+    const t = tokenInput.trim();
+    if (t) {
+      sessionStorage.setItem(TOKEN_KEY, t);
+      setGithubToken(t);
+      setTokenInput("");
+    }
+  };
+
+  const clearToken = () => {
+    sessionStorage.removeItem(TOKEN_KEY);
+    setGithubToken("");
   };
 
   const handleCreateProject = () => {
@@ -49,7 +70,20 @@ export default function AdminPage() {
     if (!confirm("Are you sure you want to delete this project?")) return;
 
     try {
-      await deleteProject(id);
+      if (githubToken && getRepo()) {
+        const raw = await getFile(githubToken, "public/projects.json");
+        const list: Project[] = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(list)) throw new Error("Invalid projects.json");
+        const next = list.filter((p) => p.id !== id);
+        await putFile(
+          githubToken,
+          "public/projects.json",
+          JSON.stringify(next, null, 2),
+          "Delete project"
+        );
+      } else {
+        await deleteProject(id);
+      }
       setProjects(projects.filter((p) => p.id !== id));
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("projectsUpdated"));
@@ -62,7 +96,7 @@ export default function AdminPage() {
 
   const handleExportProjects = async () => {
     try {
-      const json = await exportProjects();
+      const json = projects.length ? JSON.stringify(projects, null, 2) : "[]";
       const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -90,7 +124,19 @@ export default function AdminPage() {
 
     try {
       const text = await file.text();
-      await importProjects(text);
+      const list = JSON.parse(text) as Project[];
+      if (!Array.isArray(list)) throw new Error("Invalid JSON");
+
+      if (githubToken && getRepo()) {
+        await putFile(
+          githubToken,
+          "public/projects.json",
+          JSON.stringify(list, null, 2),
+          "Import projects"
+        );
+      } else {
+        await importProjects(text);
+      }
       await fetchProjects();
       alert("Projects imported successfully!");
     } catch (error) {
@@ -124,17 +170,40 @@ export default function AdminPage() {
 
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200">
           <p className="text-sm text-blue-800 mb-2">
-            <strong>Backend:</strong> Projects and images are stored on the server (data/projects.json and public/uploads). No storage limits.
+            <strong>GitHub Pages:</strong> To add projects on the live site, add a GitHub token (repo scope) below. Projects and images will be saved to the repo; the next deploy will show them.
           </p>
-          <div className="flex gap-2 mt-2">
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <input
+              type="password"
+              placeholder="GitHub token (repo)"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              className="px-3 py-1 border border-black text-black text-sm max-w-xs"
+            />
+            <button
+              type="button"
+              onClick={saveToken}
+              className="px-4 py-1 text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              Save token
+            </button>
+            {githubToken && (
+              <button
+                type="button"
+                onClick={clearToken}
+                className="px-4 py-1 text-xs bg-gray-500 text-white hover:bg-gray-600 transition-colors"
+              >
+                Clear token
+              </button>
+            )}
             <button
               onClick={handleExportProjects}
               className="px-4 py-1 text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors"
             >
-              Export Projects (Backup)
+              Export (Backup)
             </button>
             <label className="px-4 py-1 text-xs bg-green-600 text-white hover:bg-green-700 transition-colors cursor-pointer">
-              Import Projects
+              Import
               <input
                 type="file"
                 accept=".json"
@@ -148,6 +217,7 @@ export default function AdminPage() {
         {showForm && (
           <ProjectForm
             project={editingProject}
+            githubToken={githubToken}
             onClose={() => {
               setShowForm(false);
               setEditingProject(null);
@@ -219,12 +289,17 @@ function ProjectCard({
   );
 }
 
+const BASE_PATH =
+  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_BASE_PATH) || "/omvrastudios";
+
 function ProjectForm({
   project,
+  githubToken,
   onClose,
   onSave,
 }: {
   project: Project | null;
+  githubToken: string;
   onClose: () => void;
   onSave: () => void;
 }) {
@@ -242,12 +317,22 @@ function ProjectForm({
 
     try {
       const fileArray = Array.from(files);
-      const urls = await uploadImages(fileArray);
+      let urls: string[];
+
+      if (githubToken && getRepo()) {
+        const { uploadImageToRepo } = await import("@/lib/githubApi");
+        urls = [];
+        for (const file of fileArray) {
+          const url = await uploadImageToRepo(githubToken, file, BASE_PATH);
+          urls.push(url);
+        }
+      } else {
+        urls = await uploadImages(fileArray);
+      }
 
       if (urls.length > 0) {
         const newImages = urlsToProjectImages(urls, fileArray.map((f) => f.name));
-        setImages([...images, ...newImages]);
-        // Reset file input
+        setImages((prev) => [...prev, ...newImages]);
         e.target.value = "";
       } else {
         alert("No images were uploaded. Please try again.");
@@ -282,10 +367,25 @@ function ProjectForm({
         updatedAt: new Date().toISOString(),
       };
 
-      if (project) {
-        await updateProject(project.id, projectData);
+      if (githubToken && getRepo()) {
+        const raw = await getFile(githubToken, "public/projects.json");
+        let list: Project[] = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(list)) list = [];
+        const idx = list.findIndex((p) => p.id === projectData.id);
+        if (idx >= 0) list[idx] = projectData;
+        else list.push(projectData);
+        await putFile(
+          githubToken,
+          "public/projects.json",
+          JSON.stringify(list, null, 2),
+          project ? "Update project" : "Add project"
+        );
       } else {
-        await createProject(projectData);
+        if (project) {
+          await updateProject(project.id, projectData);
+        } else {
+          await createProject(projectData);
+        }
       }
 
       if (typeof window !== "undefined") {

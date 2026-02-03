@@ -1,6 +1,6 @@
 import { Project } from "./projects";
 import { Photo } from "./data";
-import { loadProjects, getProjectById as getProjectByIdApi } from "./projectApi";
+import { loadProjects, getProjectById } from "./projectSource";
 
 // One gallery item per project (first image only); clicking opens project detail page
 export function projectsToPhotos(projects: Project[]): Photo[] {
@@ -33,13 +33,6 @@ export async function getAllPhotos(): Promise<Photo[]> {
   }
 }
 
-// Get a project by ID
-export async function getProjectById(projectId: string): Promise<Project | null> {
-  try {
-    return await getProjectByIdApi(projectId);
-  } catch (error) {
-    console.error("Failed to load project:", error);
-    return null;
-  }
-}
+// Re-export for project detail page
+export { getProjectById } from "./projectSource";
 
