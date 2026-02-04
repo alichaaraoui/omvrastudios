@@ -94,14 +94,15 @@ export async function uploadImages(files: File[]): Promise<string[]> {
       cacheControl: "3600",
     });
     if (error) {
-      const msg = error.message || "";
+      console.error("Supabase storage error:", error);
+      const msg = error.message || String(error);
       const hint =
         msg.includes("Bucket") || msg.includes("bucket") || msg.includes("not found")
-          ? " Create the 'uploads' bucket in Supabase Dashboard → Storage (Public)."
-          : msg.includes("row-level security") || msg.includes("policy")
-            ? " In Supabase Dashboard → Storage → uploads → Policies, add a policy that allows INSERT for all."
+          ? " Create the 'uploads' bucket in Supabase: Storage → New bucket → name 'uploads', Public ON."
+          : msg.includes("row-level security") || msg.includes("policy") || msg.includes("RLS")
+            ? " In Supabase SQL Editor, run the storage policies from supabase-setup.sql (the part after 'Storage:')."
             : "";
-      throw new Error(msg + hint);
+      throw new Error(msg + (hint ? " — " + hint : ""));
     }
     const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
     urls.push(urlData.publicUrl);

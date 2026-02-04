@@ -224,7 +224,9 @@ function ProjectForm({
       const newImages = projectSupabase.urlsToProjectImages(urls, Array.from(files).map((f) => f.name));
       setImages((prev) => [...prev, ...newImages]);
     } catch (err) {
-      alert("Upload failed: " + (err instanceof Error ? err.message : "Unknown error"));
+      console.error("Upload error:", err);
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      alert("Upload failed: " + msg + "\n\nCheck the browser console (F12) for details. Ensure Supabase Storage has bucket 'uploads' (Public) and the policies from supabase-setup.sql are applied.");
     } finally {
       setUploading(false);
     }
