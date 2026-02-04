@@ -64,20 +64,19 @@ export default function Navbar() {
         />
       )}
       <nav
-        className="fixed left-0 right-0 z-50 flex justify-center px-4"
+        className="fixed left-0 right-0 z-50 flex justify-center"
         style={{
           top: "max(1rem, env(safe-area-inset-top))",
         }}
       >
-        <div className="w-full max-w-[450px] flex justify-center">
-          <div
-            className="bg-white overflow-hidden"
-            style={{
-              width: isExpanded ? "100%" : "auto",
-              transition: "width 500ms ease-in-out",
-              display: isExpanded ? "block" : "inline-block",
-            }}
-          >
+        <div
+          className="bg-white overflow-hidden absolute left-1/2 -translate-x-1/2"
+          style={{
+            width: isExpanded ? "min(450px, calc(100vw - 2rem))" : "auto",
+            transition: "width 500ms ease-in-out",
+            display: isExpanded ? "block" : "inline-block",
+          }}
+        >
           {/* Main navbar row - 44px min touch targets */}
           <div className="p-2 flex items-center gap-2">
             <Link
@@ -172,7 +171,6 @@ export default function Navbar() {
               )}
             </div>
           </div>
-        </div>
         </div>
       </nav>
     </>
