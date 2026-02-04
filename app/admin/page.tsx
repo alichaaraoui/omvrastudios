@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Project, ProjectImage } from "@/lib/projects";
 import { loadProjects } from "@/lib/projectSource";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -204,6 +204,9 @@ function ProjectFormModal({
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [selectedNames, setSelectedNames] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTitle(project?.title ?? "");
@@ -213,17 +216,17 @@ function ProjectFormModal({
 
   async function handleFileChange(ev: React.ChangeEvent<HTMLInputElement>) {
     const files = ev.target.files;
-    ev.target.value = "";
     if (!files?.length) return;
+    const names = Array.from(files).map((f) => f.name);
+    setSelectedNames(names);
+    setUploadError(null);
     if (!isSupabaseConfigured()) {
-      alert("Supabase is required for image upload. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      setUploadError("Supabase is required for upload. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
       return;
     }
     setUploading(true);
-    setSaveError(null);
     try {
       const urls = await projectSupabase.uploadImages(Array.from(files));
-      const names = Array.from(files).map((f) => f.name);
       const newImages: ProjectImage[] = urls.map((url, i) => ({
         id: `img-${Date.now()}-${i}`,
         url,
@@ -231,10 +234,11 @@ function ProjectFormModal({
         title: names[i] ?? "",
       }));
       setImages((prev) => [...prev, ...newImages]);
+      setSelectedNames([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Upload failed";
-      setSaveError(msg);
-      alert(msg);
+      setUploadError(msg);
     } finally {
       setUploading(false);
     }
@@ -332,14 +336,20 @@ function ProjectFormModal({
           <div className="mb-4">
             <label className="block text-sm font-medium text-black mb-1">Images</label>
             <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               multiple
               onChange={handleFileChange}
-              disabled={uploading}
-              className="w-full text-sm text-black"
+              className="w-full text-sm text-black file:mr-2 file:py-2 file:px-4 file:border file:border-black file:bg-white file:cursor-pointer"
             />
-            {uploading && <p className="mt-1 text-sm text-gray-500">Uploading…</p>}
+            {selectedNames.length > 0 && (
+              <p className="mt-1 text-sm text-gray-700">
+                {uploading ? "Uploading… " : "Selected: "}
+                {selectedNames.join(", ")}
+              </p>
+            )}
+            {uploadError && <p className="mt-1 text-sm text-red-600">{uploadError}</p>}
           </div>
 
           {images.length > 0 && (
