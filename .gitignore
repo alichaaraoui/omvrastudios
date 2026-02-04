@@ -34,6 +34,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# admin data
-/data
-/public/uploads
+# optional: uncomment to ignore local project data (use Supabase for live site instead)
+# /data
+# /public/uploads

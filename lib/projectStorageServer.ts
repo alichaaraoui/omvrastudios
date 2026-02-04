@@ -4,6 +4,7 @@ import { Project } from "./projects";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const PROJECTS_FILE = path.join(DATA_DIR, "projects.json");
+const PUBLIC_PROJECTS_FILE = path.join(process.cwd(), "public", "projects.json");
 const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
 
 export function getProjectsFilePath(): string {
@@ -35,8 +36,14 @@ export function readProjects(): Project[] {
 
 export function writeProjects(projects: Project[]): void {
   ensureDir(DATA_DIR);
-  fs.writeFileSync(PROJECTS_FILE, JSON.stringify(projects, null, 2), "utf-8");
+  const json = JSON.stringify(projects, null, 2);
+  fs.writeFileSync(PROJECTS_FILE, json, "utf-8");
+  // Also write to public so static deploy (e.g. GitHub Pages) can serve it after commit
+  ensureDir(path.dirname(PUBLIC_PROJECTS_FILE));
+  fs.writeFileSync(PUBLIC_PROJECTS_FILE, json, "utf-8");
 }
+
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export function saveUploadedFile(buffer: Buffer, originalName: string): string {
   ensureDir(UPLOADS_DIR);
@@ -44,7 +51,7 @@ export function saveUploadedFile(buffer: Buffer, originalName: string): string {
   const name = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}${ext}`;
   const filePath = path.join(UPLOADS_DIR, name);
   fs.writeFileSync(filePath, buffer);
-  return `/uploads/${name}`;
+  return `${BASE_PATH}/uploads/${name}`.replace(/\/+/g, "/") || `/uploads/${name}`;
 }
 
 /** Save a data URL (e.g. data:image/jpeg;base64,...) to uploads and return public URL. */
@@ -58,5 +65,5 @@ export function saveDataUrl(dataUrl: string): string {
   const name = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}${ext}`;
   const filePath = path.join(UPLOADS_DIR, name);
   fs.writeFileSync(filePath, Buffer.from(base64, "base64"));
-  return `/uploads/${name}`;
+  return `${BASE_PATH}/uploads/${name}`.replace(/\/+/g, "/") || `/uploads/${name}`;
 }

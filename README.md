@@ -35,45 +35,35 @@ npm run dev
 
 3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Adding projects on the live site (no token for users)
+## Easiest way to manage projects (no database)
 
-To let anyone create projects from the **public** site (e.g. GitHub Pages) with no login or token:
+You can add and edit projects **without any database or Supabase**:
 
-1. **Create a free [Supabase](https://supabase.com) project.**
+1. **Run the app locally:** `npm run dev`
+2. **Open the admin:** [http://localhost:3000/admin](http://localhost:3000/admin) (or `http://localhost:3000/omvrastudios/admin` if using basePath)
+3. **Create projects** and upload images as usual. They’re saved on your machine in `data/projects.json` and `public/uploads/`. The same data is also written to `public/projects.json` so the static site can use it.
+4. **Commit and push** the new/updated files:
+   - `public/projects.json`
+   - `public/uploads/` (the image files)
+5. After the next deploy (e.g. GitHub Actions), the live site will show your projects.
 
-2. **Create the table and bucket** in the Supabase SQL Editor:
+No signup, no SQL, no env vars. The “database” is just these files in your repo.
 
-```sql
--- Table for projects
-create table if not exists projects (
-  id text primary key,
-  title text not null,
-  description text not null,
-  images jsonb not null default '[]',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+---
 
--- Allow public read and insert/update/delete (for admin)
-alter table projects enable row level security;
-create policy "Allow public read" on projects for select using (true);
-create policy "Allow public all" on projects for all using (true);
+## Let your client add projects from their computer
 
--- Storage bucket for images (run in SQL or create in Dashboard → Storage)
-insert into storage.buckets (id, name, public) values ('uploads', 'uploads', true)
-on conflict (id) do nothing;
-create policy "Allow public read" on storage.objects for select using (bucket_id = 'uploads');
-create policy "Allow public upload" on storage.objects for insert with check (bucket_id = 'uploads');
-```
+You do a **one-time setup** (about 5 minutes). After that, your client goes to **yoursite.com/admin** and adds projects—no git, no dev server, no login.
 
-If the bucket already exists, create it in **Dashboard → Storage → New bucket** (name: `uploads`, public: yes), then add policies so **select** and **insert** are allowed for everyone.
+### One-time setup (you)
 
-3. **Add env vars** (in GitHub: repo → Settings → Secrets and variables → Actions; or for local, `.env.local`):
+1. **Create a free Supabase project** — [supabase.com](https://supabase.com) → New project → name it, set a password, Create.
+2. **Run the setup script** — In Supabase: **SQL Editor** → New query → paste the contents of **`supabase-setup.sql`** (in this repo) → **Run**.
+3. **Create the image bucket** — **Storage** → **New bucket** → name: `uploads` → turn **Public bucket** ON → Create.
+4. **Get your URL and key** — **Project Settings** (gear) → **API** → copy **Project URL** and **anon public** key.
+5. **Add them to the build** — **GitHub:** Repo **Settings** → **Secrets and variables** → **Actions** → **Variables** → add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Then push a commit or re-run the workflow so the site rebuilds.
 
-- `NEXT_PUBLIC_SUPABASE_URL` = your project URL (e.g. `https://xxxx.supabase.co`)
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your project anon/public key
-
-4. **Redeploy.** After that, anyone can open `/admin` on the live site, create a project, and upload images—no token needed.
+**Done.** Send your client the link: **yoursite.com/admin** (or **yoursite.com/omvrastudios/admin**). They open it, click “New project”, add title, description, and images, and save. No account, no setup for them.
 
 ## Local / Node backend (optional)
 

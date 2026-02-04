@@ -86,13 +86,23 @@ export async function uploadImages(files: File[]): Promise<string[]> {
 
   const urls: string[] = [];
   for (const file of files) {
-    const ext = file.name.replace(/^.*\./, "") || "jpg";
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`;
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}.${ext}`;
     const { data, error } = await supabase.storage.from(BUCKET).upload(path, file, {
       contentType: file.type || "image/jpeg",
       upsert: false,
+      cacheControl: "3600",
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      const msg = error.message || "";
+      const hint =
+        msg.includes("Bucket") || msg.includes("bucket") || msg.includes("not found")
+          ? " Create the 'uploads' bucket in Supabase Dashboard → Storage (Public)."
+          : msg.includes("row-level security") || msg.includes("policy")
+            ? " In Supabase Dashboard → Storage → uploads → Policies, add a policy that allows INSERT for all."
+            : "";
+      throw new Error(msg + hint);
+    }
     const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
     urls.push(urlData.publicUrl);
   }

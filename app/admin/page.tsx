@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { Project, ProjectImage } from "@/lib/projects";
 import { loadProjects } from "@/lib/projectSource";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -9,225 +10,177 @@ import {
   createProject,
   updateProject,
   deleteProject,
-  uploadImages,
-  urlsToProjectImages,
   importProjects,
 } from "@/lib/projectApi";
-import Image from "next/image";
+
+const UPLOAD_TIMEOUT_MS = 30000;
 
 export default function AdminPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [showForm, setShowForm] = useState(false);
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  const fetchProjects = async () => {
+  const refresh = useCallback(async () => {
     try {
       const data = await loadProjects();
       setProjects(data);
-    } catch (error) {
-      console.error("Failed to fetch projects:", error);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleCreateProject = () => {
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const openCreate = () => {
     setEditingProject(null);
-    setShowForm(true);
+    setFormOpen(true);
   };
 
-  const handleEditProject = (project: Project) => {
+  const openEdit = (project: Project) => {
     setEditingProject(project);
-    setShowForm(true);
+    setFormOpen(true);
   };
 
-  const handleDeleteProject = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this project?")) return;
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingProject(null);
+  };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this project?")) return;
     try {
-      if (isSupabaseConfigured()) {
-        await projectSupabase.deleteProject(id);
-      } else {
-        await deleteProject(id);
-      }
-      setProjects(projects.filter((p) => p.id !== id));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("projectsUpdated"));
-      }
-    } catch (error) {
-      console.error("Failed to delete project:", error);
-      alert("Failed to delete project: " + (error instanceof Error ? error.message : "Unknown error"));
+      if (isSupabaseConfigured()) await projectSupabase.deleteProject(id);
+      else await deleteProject(id);
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+      window.dispatchEvent(new Event("projectsUpdated"));
+    } catch (e) {
+      alert("Delete failed: " + (e instanceof Error ? e.message : "Unknown error"));
     }
   };
 
-  const handleExportProjects = async () => {
-    try {
-      const json = projects.length ? JSON.stringify(projects, null, 2) : "[]";
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `omvra-projects-${new Date().toISOString().split("T")[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      alert("Projects exported successfully!");
-    } catch (error) {
-      console.error("Export error:", error);
-      alert("Failed to export projects");
-    }
+  const handleExport = () => {
+    const json = JSON.stringify(projects, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `omvra-projects-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
-  const handleImportProjects = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!confirm("This will replace all existing projects. Continue?")) {
-      e.target.value = "";
-      return;
-    }
-
+    e.target.value = "";
+    if (!file || !confirm("Replace all projects with this file?")) return;
     try {
-      const text = await file.text();
-      const list = JSON.parse(text) as Project[];
+      const list = JSON.parse(await file.text()) as Project[];
       if (!Array.isArray(list)) throw new Error("Invalid JSON");
-
-      if (isSupabaseConfigured()) {
-        await projectSupabase.replaceAllProjects(list);
-      } else {
-        await importProjects(text);
-      }
-      await fetchProjects();
-      alert("Projects imported successfully!");
-    } catch (error) {
-      console.error("Import error:", error);
-      alert("Failed to import projects: " + (error instanceof Error ? error.message : "Invalid file"));
-    } finally {
-      e.target.value = "";
+      if (isSupabaseConfigured()) await projectSupabase.replaceAllProjects(list);
+      else await importProjects(JSON.stringify(list));
+      await refresh();
+      alert("Import done.");
+    } catch (err) {
+      alert("Import failed: " + (err instanceof Error ? err.message : "Invalid file"));
     }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <p className="text-black">Loading...</p>
+        <p className="text-black">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-black">Admin - Project Management</h1>
-          <button
-            onClick={handleCreateProject}
-            className="px-6 py-2 bg-black text-white border border-black hover:bg-white hover:text-black transition-colors"
-          >
-            + Create New Project
-          </button>
-        </div>
-
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200">
-          <p className="text-sm text-blue-800 mb-2">
-            {isSupabaseConfigured()
-              ? "Create and edit projects below. No login required—projects are saved to the cloud."
-              : "To add projects on the live site, set up Supabase once (see README): add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. Then anyone can create projects here with no token."}
-          </p>
-          <div className="flex flex-wrap items-center gap-2 mt-2">
+    <div className="min-h-screen bg-white p-6 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <h1 className="text-2xl font-bold text-black">Admin</h1>
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={handleExportProjects}
-              className="px-4 py-1 text-xs bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              type="button"
+              onClick={openCreate}
+              className="px-4 py-2 bg-black text-white border border-black hover:bg-white hover:text-black transition-colors"
             >
-              Export (Backup)
+              New project
             </button>
-            <label className="px-4 py-1 text-xs bg-green-600 text-white hover:bg-green-700 transition-colors cursor-pointer">
+            <button
+              type="button"
+              onClick={handleExport}
+              className="px-4 py-2 border border-black text-black hover:bg-black hover:text-white transition-colors"
+            >
+              Export
+            </button>
+            <label className="px-4 py-2 border border-black text-black hover:bg-black hover:text-white transition-colors cursor-pointer">
               Import
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImportProjects}
-                className="hidden"
-              />
+              <input type="file" accept=".json" onChange={handleImport} className="hidden" />
             </label>
           </div>
-        </div>
+        </header>
 
-        {showForm && (
+        {!isSupabaseConfigured() && (
+          <p className="mb-6 p-3 text-sm bg-amber-50 text-amber-900 border border-amber-200">
+            Set up Supabase (see README) so projects and image uploads work on the live site.
+          </p>
+        )}
+
+        {formOpen && (
           <ProjectForm
             project={editingProject}
-            onClose={() => {
-              setShowForm(false);
-              setEditingProject(null);
+            onClose={closeForm}
+            onSaved={() => {
+              refresh();
+              closeForm();
+              window.dispatchEvent(new Event("projectsUpdated"));
             }}
-            onSave={fetchProjects}
           />
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-          {projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              onEdit={handleEditProject}
-              onDelete={handleDeleteProject}
-            />
-          ))}
-        </div>
-
-        {projects.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">No projects yet. Create your first project!</p>
-          </div>
+        {projects.length === 0 ? (
+          <p className="text-gray-500 text-center py-12">No projects yet. Create one above.</p>
+        ) : (
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {projects.map((project) => (
+              <li key={project.id} className="border border-black p-4 bg-white">
+                {project.images[0] && (
+                  <div className="relative w-full aspect-square mb-3">
+                    <Image
+                      src={project.images[0].thumbnailUrl || project.images[0].url}
+                      alt=""
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <h2 className="font-semibold text-black truncate">{project.title}</h2>
+                <p className="text-sm text-gray-600 line-clamp-2 mt-1">{project.description}</p>
+                <p className="text-xs text-gray-400 mt-2">{project.images.length} image(s)</p>
+                <div className="flex gap-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(project)}
+                    className="flex-1 py-2 border border-black text-black hover:bg-black hover:text-white transition-colors text-sm"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(project.id)}
+                    className="flex-1 py-2 border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
-      </div>
-    </div>
-  );
-}
-
-function ProjectCard({
-  project,
-  onEdit,
-  onDelete,
-}: {
-  project: Project;
-  onEdit: (project: Project) => void;
-  onDelete: (id: string) => void;
-}) {
-  return (
-    <div className="border border-black bg-white p-4">
-      {project.images.length > 0 && (
-        <div className="relative w-full aspect-square mb-4">
-          <Image
-            src={project.images[0].thumbnailUrl || project.images[0].url}
-            alt={project.title}
-            fill
-            className="object-cover"
-          />
-        </div>
-      )}
-      <h3 className="font-bold text-lg mb-2 text-black">{project.title}</h3>
-      <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
-      <p className="text-xs text-gray-400 mb-4">{project.images.length} image(s)</p>
-      <div className="flex gap-2">
-        <button
-          onClick={() => onEdit(project)}
-          className="flex-1 px-4 py-2 border border-black text-black hover:bg-black hover:text-white transition-colors text-sm"
-        >
-          Edit
-        </button>
-        <button
-          onClick={() => onDelete(project.id)}
-          className="flex-1 px-4 py-2 border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors text-sm"
-        >
-          Delete
-        </button>
       </div>
     </div>
   );
@@ -236,173 +189,136 @@ function ProjectCard({
 function ProjectForm({
   project,
   onClose,
-  onSave,
+  onSaved,
 }: {
   project: Project | null;
   onClose: () => void;
-  onSave: () => void;
+  onSaved: () => void;
 }) {
-  const [title, setTitle] = useState(project?.title || "");
-  const [description, setDescription] = useState(project?.description || "");
-  const [images, setImages] = useState<ProjectImage[]>(project?.images || []);
+  const [title, setTitle] = useState(project?.title ?? "");
+  const [description, setDescription] = useState(project?.description ?? "");
+  const [images, setImages] = useState<ProjectImage[]>(project?.images ?? []);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    e.target.value = "";
+    if (!files?.length) return;
+
+    if (!isSupabaseConfigured()) {
+      alert(
+        "Image upload needs Supabase. See README: create a project at supabase.com, add the uploads bucket and policies, then set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY and redeploy."
+      );
+      return;
+    }
 
     setUploading(true);
-
     try {
-      const fileArray = Array.from(files);
-      const urls = isSupabaseConfigured()
-        ? await projectSupabase.uploadImages(fileArray)
-        : await uploadImages(fileArray);
-      const toImages = isSupabaseConfigured()
-        ? projectSupabase.urlsToProjectImages
-        : urlsToProjectImages;
-
-      if (urls.length > 0) {
-        const newImages = toImages(urls, fileArray.map((f) => f.name));
-        setImages((prev) => [...prev, ...newImages]);
-        e.target.value = "";
-      } else {
-        alert("No images were uploaded. Please try again.");
-      }
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      alert("Failed to upload images: " + (error?.message || "Unknown error"));
+      const urls = await Promise.race([
+        projectSupabase.uploadImages(Array.from(files)),
+        new Promise<string[]>((_, rej) =>
+          setTimeout(() => rej(new Error("Upload timed out. Check Supabase Storage (uploads bucket + policies).")), UPLOAD_TIMEOUT_MS)
+        ),
+      ]);
+      const newImages = projectSupabase.urlsToProjectImages(urls, Array.from(files).map((f) => f.name));
+      setImages((prev) => [...prev, ...newImages]);
+    } catch (err) {
+      alert("Upload failed: " + (err instanceof Error ? err.message : "Unknown error"));
     } finally {
       setUploading(false);
     }
   };
 
-  const handleRemoveImage = (imageId: string) => {
-    setImages(images.filter((img) => img.id !== imageId));
-  };
+  const removeImage = (id: string) => setImages((prev) => prev.filter((img) => img.id !== id));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !description || images.length === 0) {
-      alert("Please fill in all fields and upload at least one image");
+    if (!title.trim() || !description.trim() || images.length === 0) {
+      alert("Fill title, description, and add at least one image.");
       return;
     }
 
     setSaving(true);
     try {
-      const projectData: Project = {
-        id: project?.id || `project-${Date.now()}`,
-        title,
-        description,
+      const payload: Project = {
+        id: project?.id ?? `project-${Date.now()}`,
+        title: title.trim(),
+        description: description.trim(),
         images,
-        createdAt: project?.createdAt || new Date().toISOString(),
+        createdAt: project?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
       if (isSupabaseConfigured()) {
-        if (project) {
-          await projectSupabase.updateProject(project.id, projectData);
-        } else {
-          await projectSupabase.createProject(projectData);
-        }
+        if (project) await projectSupabase.updateProject(project.id, payload);
+        else await projectSupabase.createProject(payload);
       } else {
-        if (project) {
-          await updateProject(project.id, projectData);
-        } else {
-          await createProject(projectData);
-        }
+        if (project) await updateProject(project.id, payload);
+        else await createProject(payload);
       }
-
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("projectsUpdated"));
-      }
-      onSave();
-      onClose();
-    } catch (error: any) {
-      console.error("Save error:", error);
-      alert("Failed to save project: " + (error?.message || "Unknown error"));
+      onSaved();
+    } catch (err) {
+      alert("Save failed: " + (err instanceof Error ? err.message : "Unknown error"));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white border border-black p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white border border-black w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-black">
-            {project ? "Edit Project" : "Create New Project"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-black hover:text-gray-600 text-2xl"
-          >
+          <h2 className="text-xl font-bold text-black">{project ? "Edit project" : "New project"}</h2>
+          <button type="button" onClick={onClose} className="text-black text-2xl leading-none" aria-label="Close">
             ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-black mb-2">
-              Project Title *
-            </label>
+            <label className="block text-sm font-medium text-black mb-1">Title *</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 border border-black text-black bg-white"
+              className="w-full px-3 py-2 border border-black text-black bg-white"
               required
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-black mb-2">
-              Description *
-            </label>
+            <label className="block text-sm font-medium text-black mb-1">Description *</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-2 border border-black text-black bg-white h-32"
+              className="w-full px-3 py-2 border border-black text-black bg-white h-28 resize-y"
               required
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-black mb-2">
-              Images *
-            </label>
+            <label className="block text-sm font-medium text-black mb-1">Images *</label>
             <input
               type="file"
               accept="image/*"
               multiple
-              onChange={handleImageUpload}
+              onChange={handleUpload}
               disabled={uploading}
-              className="w-full px-4 py-2 border border-black text-black bg-white"
+              className="w-full text-sm text-black file:mr-2 file:py-1 file:px-3 file:border file:border-black file:bg-white file:cursor-pointer"
             />
-            {uploading && <p className="text-sm text-gray-500 mt-2">Uploading...</p>}
+            {uploading && <p className="text-sm text-gray-500 mt-1">Uploading…</p>}
           </div>
 
           {images.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Uploaded Images ({images.length})
-              </label>
-              <div className="grid grid-cols-3 gap-4">
-                {images.map((image) => (
-                  <div key={image.id} className="relative">
-                    <div className="relative w-full aspect-square">
-                      <Image
-                        src={image.thumbnailUrl || image.url}
-                        alt={image.title || "Project image"}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
+              <p className="text-sm font-medium text-black mb-2">Added ({images.length})</p>
+              <div className="grid grid-cols-3 gap-2">
+                {images.map((img) => (
+                  <div key={img.id} className="relative aspect-square">
+                    <Image src={img.thumbnailUrl || img.url} alt="" fill className="object-cover" />
                     <button
                       type="button"
-                      onClick={() => handleRemoveImage(image.id)}
-                      className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 text-xs hover:bg-red-700"
+                      onClick={() => removeImage(img.id)}
+                      className="absolute top-1 right-1 bg-red-600 text-white text-xs px-1.5 py-0.5 hover:bg-red-700"
                     >
                       Remove
                     </button>
@@ -412,19 +328,15 @@ function ProjectForm({
             </div>
           )}
 
-          <div className="flex gap-4">
+          <div className="flex gap-3 pt-2">
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-6 py-2 bg-black text-white border border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50"
+              className="flex-1 py-2 bg-black text-white border border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50"
             >
-              {saving ? "Saving..." : project ? "Update Project" : "Create Project"}
+              {saving ? "Saving…" : project ? "Update" : "Create"}
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 border border-black text-black hover:bg-black hover:text-white transition-colors"
-            >
+            <button type="button" onClick={onClose} className="py-2 px-4 border border-black text-black hover:bg-black hover:text-white transition-colors">
               Cancel
             </button>
           </div>
@@ -433,4 +345,3 @@ function ProjectForm({
     </div>
   );
 }
-
