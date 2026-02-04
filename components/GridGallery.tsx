@@ -18,7 +18,7 @@ export default function GridGallery({ photos }: GridGalleryProps) {
           key={photo.id}
           onClick={() => {
             if (photo.projectId) {
-              router.push(`/project/${photo.projectId}`);
+              router.push(`/project?id=${encodeURIComponent(photo.projectId)}`);
               return;
             }
             router.push(`/photo/${photo.id}`);

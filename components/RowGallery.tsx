@@ -76,7 +76,7 @@ function IsometricPhotoPlane({ photo, basePosition, scrollOffset, index }: { pho
 
   const handleClick = () => {
     if (photo.projectId) {
-      router.push(`/project/${photo.projectId}`);
+      router.push(`/project?id=${encodeURIComponent(photo.projectId)}`);
       return;
     }
     router.push(`/photo/${photo.id}`);

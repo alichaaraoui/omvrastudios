@@ -59,7 +59,7 @@ function PhotoPlane({ photo, position, index, total }: { photo: Photo; position:
 
   const handleClick = () => {
     if (photo.projectId) {
-      router.push(`/project/${photo.projectId}`);
+      router.push(`/project?id=${encodeURIComponent(photo.projectId)}`);
       return;
     }
     router.push(`/photo/${photo.id}`);

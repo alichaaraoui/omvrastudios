@@ -1,21 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { getProjectById } from "@/lib/projectUtils";
 import { Project } from "@/lib/projects";
 import Image from "next/image";
 import BackButton from "@/components/BackButton";
 
 export default function ProjectPageClient() {
-  const params = useParams();
-  const projectId = params?.id as string;
+  const searchParams = useSearchParams();
+  const projectId = searchParams?.get("id") ?? "";
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   useEffect(() => {
     async function loadProject() {
+      if (!projectId) {
+        setLoading(false);
+        return;
+      }
       try {
         const loadedProject = await getProjectById(projectId);
         setProject(loadedProject);
@@ -36,7 +40,7 @@ export default function ProjectPageClient() {
     );
   }
 
-  if (!project || project.images.length === 0) {
+  if (!projectId || !project || project.images.length === 0) {
     return (
       <div className="fixed inset-0 w-screen h-screen bg-white flex items-center justify-center">
         <div className="text-center">
@@ -137,4 +141,3 @@ export default function ProjectPageClient() {
     </div>
   );
 }
-
