@@ -32,10 +32,9 @@ jobs:
         run: npm ci
 
       # GitHub Pages is static-only; API routes are not supported. Remove them
-      # so the static export build succeeds. The backend runs only when using
-      # a Node server (e.g. npm run start or Vercel).
+      # so the static export build succeeds (dynamic API routes need generateStaticParams).
       - name: Remove API routes for static export
-        run: rm -rf app/api
+        run: rm -rf app/api && ls -la app/
 
       - name: Build
         run: npm run build
