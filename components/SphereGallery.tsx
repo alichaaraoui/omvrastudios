@@ -160,7 +160,7 @@ export default function SphereGallery({ photos }: SphereGalleryProps) {
   }
 
   return (
-    <div className="w-full h-screen bg-white relative">
+    <div className="w-full h-[100dvh] h-screen bg-white relative">
       <Suspense fallback={<LoadingFallback />}>
         <Canvas 
           camera={{ position: [0, 0, 30], fov: 60 }}

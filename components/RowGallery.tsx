@@ -142,21 +142,45 @@ function IsometricRowScene({ photos }: { photos: Photo[] }) {
     return [x, y, z];
   });
 
-  // Handle wheel scroll for horizontal scrolling with limits
+  const maxOffset = (photos.length * spacing) / 2;
+  const minOffset = -(photos.length * spacing) / 2;
+  const clamp = (v: number) => Math.max(minOffset, Math.min(maxOffset, v));
+
+  const scrollOffsetRef = useRef(scrollOffset);
+  scrollOffsetRef.current = scrollOffset;
+
+  // Wheel scroll (desktop)
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const scrollSpeed = 0.5;
-      setScrollOffset((prev) => {
-        const maxOffset = (photos.length * spacing) / 2;
-        const minOffset = -(photos.length * spacing) / 2;
-        const newOffset = prev - e.deltaY * scrollSpeed;
-        return Math.max(minOffset, Math.min(maxOffset, newOffset));
-      });
+      setScrollOffset((prev) => clamp(prev - e.deltaY * 0.5));
     };
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [photos.length, spacing]);
 
-    window.addEventListener('wheel', handleWheel, { passive: false });
-    return () => window.removeEventListener('wheel', handleWheel);
+  // Touch drag (iPhone/mobile) for horizontal scroll
+  const touchStartX = useRef(0);
+  const touchStartOffset = useRef(0);
+  useEffect(() => {
+    const container = document.querySelector("[data-row-gallery]");
+    if (!container) return;
+    const handleTouchStart = (e: Event) => {
+      const te = e as TouchEvent;
+      touchStartX.current = te.touches[0].clientX;
+      touchStartOffset.current = scrollOffsetRef.current;
+    };
+    const handleTouchMove = (e: Event) => {
+      const te = e as TouchEvent;
+      const dx = te.touches[0].clientX - touchStartX.current;
+      setScrollOffset(clamp(touchStartOffset.current + dx * 0.15));
+    };
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+    };
   }, [photos.length, spacing]);
 
   return (
@@ -208,7 +232,7 @@ export default function RowGallery({ photos }: RowGalleryProps) {
   }
 
   return (
-    <div className="fixed inset-0 w-full h-full bg-white overflow-hidden">
+    <div className="fixed inset-0 w-full h-full bg-white overflow-hidden min-h-[100dvh]" data-row-gallery style={{ height: "100dvh", minHeight: "100dvh" }}>
       <Suspense fallback={<LoadingFallback />}>
         <Canvas 
           camera={{ 

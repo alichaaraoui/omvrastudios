@@ -36,14 +36,19 @@ type ViewMode = "sphere" | "row" | "grid";
 export default function GallerySwitcher({ photos }: GallerySwitcherProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("sphere");
 
+  const bottomSafe = "max(1rem, env(safe-area-inset-bottom))";
+
   return (
-    <div className="w-full relative">
+    <div className="w-full relative min-h-[100dvh]">
       {viewMode === "sphere" ? (
         <>
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
+          <div
+            className="absolute left-1/2 transform -translate-x-1/2 z-50 flex gap-2"
+            style={{ bottom: bottomSafe }}
+          >
             <button
               onClick={() => setViewMode("sphere")}
-              className="p-3 border border-black bg-black text-white"
+              className="min-h-[44px] min-w-[44px] p-3 border border-black bg-black text-white flex items-center justify-center"
               aria-label="Sphere view"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -53,7 +58,7 @@ export default function GallerySwitcher({ photos }: GallerySwitcherProps) {
             </button>
             <button
               onClick={() => setViewMode("row")}
-              className="p-3 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors"
+              className="min-h-[44px] min-w-[44px] p-3 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors flex items-center justify-center"
               aria-label="Row view"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -64,7 +69,7 @@ export default function GallerySwitcher({ photos }: GallerySwitcherProps) {
             </button>
             <button
               onClick={() => setViewMode("grid")}
-              className="p-3 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors"
+              className="min-h-[44px] min-w-[44px] p-3 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors flex items-center justify-center"
               aria-label="Grid view"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -81,14 +86,17 @@ export default function GallerySwitcher({ photos }: GallerySwitcherProps) {
         <>
           {viewMode === "row" && <RowGallery photos={photos} />}
           {viewMode === "grid" && (
-            <div className="w-full max-w-6xl mx-auto px-4">
+            <div className="w-full max-w-6xl mx-auto px-4 pb-24 min-h-[100dvh]">
               <GridGallery photos={photos} />
             </div>
           )}
-          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
+          <div
+            className="fixed left-1/2 transform -translate-x-1/2 z-50 flex gap-2"
+            style={{ bottom: bottomSafe }}
+          >
             <button
               onClick={() => setViewMode("sphere")}
-              className="p-3 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors"
+              className="min-h-[44px] min-w-[44px] p-3 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors flex items-center justify-center"
               aria-label="Sphere view"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -98,7 +106,7 @@ export default function GallerySwitcher({ photos }: GallerySwitcherProps) {
             </button>
             <button
               onClick={() => setViewMode("row")}
-              className={`p-3 border border-black ${
+              className={`min-h-[44px] min-w-[44px] p-3 border border-black flex items-center justify-center ${
                 viewMode === "row"
                   ? "bg-black text-white"
                   : "bg-white text-black hover:bg-black hover:text-white transition-colors"
@@ -113,7 +121,7 @@ export default function GallerySwitcher({ photos }: GallerySwitcherProps) {
             </button>
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-3 border border-black ${
+              className={`min-h-[44px] min-w-[44px] p-3 border border-black flex items-center justify-center ${
                 viewMode === "grid"
                   ? "bg-black text-white"
                   : "bg-white text-black hover:bg-black hover:text-white transition-colors"

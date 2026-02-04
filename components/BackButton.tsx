@@ -12,9 +12,8 @@ export default function BackButton() {
   return (
     <button
       onClick={handleBack}
-      className="text-black border border-black p-2 flex items-center justify-center"
-      style={{ width: '2.5rem', height: '2.5rem' }}
-      aria-label="Back to sphere"
+      className="text-black border border-black p-2 flex items-center justify-center min-h-[44px] min-w-[44px]"
+      aria-label="Back"
     >
       ←
     </button>
