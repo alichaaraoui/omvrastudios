@@ -41,6 +41,8 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # Set USE_ROOT_URL to "true" when using a custom domain (site served at root). Leave unset for username.github.io/repo.
+          USE_ROOT_URL: ${{ vars.USE_ROOT_URL }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

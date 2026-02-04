@@ -65,6 +65,13 @@ You do a **one-time setup** (about 5 minutes). After that, your client goes to *
 
 **Done.** Send your client the link: **yoursite.com/admin** (or **yoursite.com/omvrastudios/admin**). They open it, click “New project”, add title, description, and images, and save. No account, no setup for them.
 
+### Using a custom domain (GitHub Pages at root)
+
+If your site is served at a **custom domain** (e.g. `https://omvrastudios.com/`) instead of `https://username.github.io/omvrastudios/`, the app must be built with the site at the **root** so CSS/JS and links work.
+
+1. **GitHub:** Repo **Settings** → **Secrets and variables** → **Actions** → **Variables** → add **Name:** `USE_ROOT_URL`, **Value:** `true`.
+2. Re-run the **Deploy to GitHub Pages** workflow (or push a commit). The next build will use `basePath: ""` so assets and routes are at the root and the site will look correct on your custom domain.
+
 ## Local / Node backend (optional)
 
 When Supabase is not configured, the app can use a **Node backend** (e.g. `npm run dev` with API routes): projects in `data/projects.json`, images in `public/uploads/`.
